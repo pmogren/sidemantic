@@ -179,11 +179,12 @@ class ParameterSet:
 
         # Otherwise use simple parameter substitution with SQL formatting
         # Find all {{ parameter_name }} and ${parameter_name} patterns
-        pattern = r"\{\{\s*(\w+)\s*\}\}|\$\{(\w+)\}"
+        # Allow for spacing and special characters in parameter names
+        pattern = r"\{\{\s*([^}]+?)\s*\}\}|\$\{([^}]+?)\}"
 
         def replace(match):
             # Handle both {{ param }} and ${param} formats
-            param_name = match.group(1) or match.group(2)
+            param_name = (match.group(1) or match.group(2)).strip()
             if param_name in self.parameters:
                 return self.format(param_name)
             else:

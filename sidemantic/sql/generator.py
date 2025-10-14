@@ -253,6 +253,7 @@ class SQLGenerator:
                 model_filters if model_filters else None,
                 order_by=order_by,
                 all_models=all_models,
+                parameters=parameters,
             )
             cte_sqls.append(cte_sql)
 
@@ -269,6 +270,7 @@ class SQLGenerator:
             offset=offset,
             ungrouped=ungrouped,
             aliases=aliases,
+            parameters=parameters,
         )
 
         # Combine CTEs and main query
@@ -529,6 +531,7 @@ class SQLGenerator:
         filters: list[str] | None = None,
         order_by: list[str] | None = None,
         all_models: set[str] | None = None,
+        parameters: dict[str, any] | None = None,
     ) -> str:
         """Build CTE SQL for a model with optional filter pushdown.
 
@@ -605,7 +608,7 @@ class SQLGenerator:
                     
                     # Process parameter placeholders using ParameterSet
                     from sidemantic.core.parameter import ParameterSet
-                    param_set = ParameterSet(self.graph.parameters, {})
+                    param_set = ParameterSet(self.graph.parameters, parameters or {})
                     dim_sql = param_set.interpolate(dim_sql)
                     
                 select_cols.append(f"{dim_sql} AS {dimension.name}")
@@ -632,7 +635,7 @@ class SQLGenerator:
                 
                 # Process parameter placeholders using ParameterSet
                 from sidemantic.core.parameter import ParameterSet
-                param_set = ParameterSet(self.graph.parameters, {})
+                param_set = ParameterSet(self.graph.parameters, parameters or {})
                 dim_sql = param_set.interpolate(dim_sql)
                 
                 alias = f"{dim_name}__{gran}"
@@ -679,7 +682,7 @@ class SQLGenerator:
                     
                     # Process parameter placeholders using ParameterSet
                     from sidemantic.core.parameter import ParameterSet
-                    param_set = ParameterSet(self.graph.parameters, {})
+                    param_set = ParameterSet(self.graph.parameters, parameters or {})
                     sql_expr = param_set.interpolate(sql_expr)
                     
                     select_cols.append(f"{sql_expr} AS {measure_name}_raw")
@@ -778,6 +781,7 @@ class SQLGenerator:
         offset: int | None = None,
         ungrouped: bool = False,
         aliases: dict[str, str] | None = None,
+        parameters: dict[str, any] | None = None,
     ) -> str:
         """Build main SELECT using SQLGlot builder API.
 
@@ -1015,7 +1019,16 @@ class SQLGenerator:
         if where_filters:
             # Parse filters to add table aliases and handle measure vs dimension columns
             for filter_expr in where_filters:
+                # Process template variables in filter expressions
                 parsed_filter = filter_expr
+                
+                # Replace {model} placeholder with actual model name
+                parsed_filter = parsed_filter.replace("{model}", base_model_name)
+                
+                # Process parameter placeholders using ParameterSet
+                from sidemantic.core.parameter import ParameterSet
+                param_set = ParameterSet(self.graph.parameters, parameters or {})
+                parsed_filter = param_set.interpolate(parsed_filter)
                 for model_name in [base_model_name] + other_models:
                     # Replace model.field references
                     # Check if field is a measure (needs _raw suffix) or dimension
