@@ -442,7 +442,7 @@ class SemanticLayer:
         rewriter = QueryRewriter(self.graph, dialect=self.dialect)
         rewritten_sql = rewriter.rewrite(query)
 
-        return self.conn.execute(rewritten_sql)
+        return self.adapter.execute(rewritten_sql)
 
     def to_yaml(self, path: str | Path) -> None:
         """Export semantic layer to native YAML file.
