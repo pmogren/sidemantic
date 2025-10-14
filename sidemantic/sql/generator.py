@@ -603,8 +603,13 @@ class SQLGenerator:
                     dim_sql = dimension.sql_expr
                     
                     # Process template variables in dimension SQL expression
-                    # Replace {model} placeholder with actual model name
-                    dim_sql = dim_sql.replace("{model}", model_name)
+                    # Replace {model} placeholder with actual table name or remove qualifier
+                    if "{model}" in dim_sql:
+                        # If the dimension SQL references {model}.column, we need to handle it properly
+                        # Since we're already in the context of the specific table, we can either:
+                        # 1. Use the actual table name, or 2. Remove the table qualifier
+                        # For simplicity and to avoid table name resolution issues, remove the qualifier
+                        dim_sql = dim_sql.replace("{model}.", "")
                     
                     # Process parameter placeholders using ParameterSet
                     from sidemantic.core.parameter import ParameterSet
@@ -630,8 +635,13 @@ class SQLGenerator:
                 dim_sql = dimension.with_granularity(gran)
                 
                 # Process template variables in dimension SQL expression
-                # Replace {model} placeholder with actual model name
-                dim_sql = dim_sql.replace("{model}", model_name)
+                # Replace {model} placeholder with actual table name or remove qualifier
+                if "{model}" in dim_sql:
+                    # If the dimension SQL references {model}.column, we need to handle it properly
+                    # Since we're already in the context of the specific table, we can either:
+                    # 1. Use the actual table name, or 2. Remove the table qualifier
+                    # For simplicity and to avoid table name resolution issues, remove the qualifier
+                    dim_sql = dim_sql.replace("{model}.", "")
                 
                 # Process parameter placeholders using ParameterSet
                 from sidemantic.core.parameter import ParameterSet
@@ -677,8 +687,13 @@ class SQLGenerator:
                     # Process template variables in measure SQL expression
                     sql_expr = measure.sql_expr
                     
-                    # Replace {model} placeholder with actual model name
-                    sql_expr = sql_expr.replace("{model}", model_name)
+                    # Replace {model} placeholder with actual table name or remove qualifier
+                    if "{model}" in sql_expr:
+                        # If the measure SQL references {model}.column, we need to handle it properly
+                        # Since we're already in the context of the specific table, we can either:
+                        # 1. Use the actual table name, or 2. Remove the table qualifier
+                        # For simplicity and to avoid table name resolution issues, remove the qualifier
+                        sql_expr = sql_expr.replace("{model}.", "")
                     
                     # Process parameter placeholders using ParameterSet
                     from sidemantic.core.parameter import ParameterSet
