@@ -198,6 +198,9 @@ class LookMLAdapter(BaseAdapter):
         sql = dim_def.get("sql")
         if sql:
             sql = sql.replace("${TABLE}", "{model}")
+            # Process {model} placeholders after parameter resolution
+            if "{model}" in sql:
+                sql = sql.replace("{model}.", "")
 
         return Dimension(
             name=name,
@@ -348,11 +351,35 @@ class LookMLAdapter(BaseAdapter):
                         dim_sql = dim.get("sql", param_name)
                         # Replace ${TABLE} with {model} in dimension SQL
                         return dim_sql.replace("${TABLE}", "{model}")
+                
+                # Check if this parameter corresponds to a measure in the same view
+                for measure in view_def.get("measures", []):
+                    if isinstance(measure, dict) and measure.get("name") == param_name:
+                        # Found matching measure, use its SQL expression
+                        measure_sql = measure.get("sql", param_name)
+                        # Replace ${TABLE} with {model} in measure SQL
+                        return measure_sql.replace("${TABLE}", "{model}")
+                
                 # If not found, leave as is (will be handled by parameter interpolation)
                 return match.group(0)
             
-            # Replace ${param_name} with resolved column references
-            sql = re.sub(r'\$\{(\w+)\}', resolve_param, sql)
+            def resolve_param_recursive(sql_expr):
+                """Recursively resolve parameter references in SQL expressions."""
+                # Keep resolving until no more ${param} patterns are found
+                max_iterations = 10  # Prevent infinite loops
+                for _ in range(max_iterations):
+                    original_sql = sql_expr
+                    sql_expr = re.sub(r'\$\{(\w+)\}', resolve_param, sql_expr)
+                    if sql_expr == original_sql:
+                        break  # No more changes, we're done
+                return sql_expr
+            
+            # Replace ${param_name} with resolved column references recursively
+            sql = resolve_param_recursive(sql)
+            
+            # Process {model} placeholders after parameter resolution
+            if "{model}" in sql:
+                sql = sql.replace("{model}.", "")
 
         # Determine if this is a derived/ratio metric
         metric_type = None

@@ -679,7 +679,7 @@ class SQLGenerator:
 
         for measure_name in measures_needed:
             measure = model.get_metric(measure_name)
-            if measure:
+            if measure and measure.type != "derived":
                 # For COUNT(*), use 1 instead of * to avoid invalid "* AS alias" syntax
                 if measure.agg == "count" and not measure.sql:
                     select_cols.append(f"1 AS {measure_name}_raw")
@@ -701,6 +701,30 @@ class SQLGenerator:
                     sql_expr = param_set.interpolate(sql_expr)
                     
                     select_cols.append(f"{sql_expr} AS {measure_name}_raw")
+
+        # Add derived metrics to CTE (avoid duplicates with measures)
+        for metric_ref in metrics:
+            if "." in metric_ref and metric_ref.startswith(model_name + "."):
+                metric_name = metric_ref.split(".")[1]
+                try:
+                    metric = model.get_metric(metric_name)
+                    if metric and metric.type == "derived" and f"{metric_name}_raw" not in columns_added:
+                        # Process derived metric SQL in CTE where raw columns are available
+                        sql_expr = metric.sql
+                        
+                        # Replace {model} placeholder with actual table name or remove qualifier
+                        if "{model}" in sql_expr:
+                            sql_expr = sql_expr.replace("{model}.", "")
+                        
+                        # Process parameter placeholders using ParameterSet
+                        from sidemantic.core.parameter import ParameterSet
+                        param_set = ParameterSet(self.graph.parameters, parameters or {})
+                        sql_expr = param_set.interpolate(sql_expr)
+                        
+                        select_cols.append(f"{sql_expr} AS {metric_name}_raw")
+                        columns_added.add(f"{metric_name}_raw")
+                except (KeyError, AttributeError):
+                    pass
 
         # Build FROM clause
         if model.sql:
@@ -885,10 +909,16 @@ class SQLGenerator:
                     # Note: cumulative, time_comparison, conversion are handled via special query generators
                     # and won't appear in this code path
                     if measure.type in ["derived", "ratio"]:
-                        # Use complex metric builder
-                        metric_expr = self._build_metric_sql(measure)
-                        metric_expr = self._wrap_with_fill_nulls(metric_expr, measure)
-                        select_exprs.append(f"{metric_expr} AS {alias}")
+                        # For derived metrics, aggregate from CTE result
+                        if measure.type == "derived":
+                            # For derived metrics in GROUP BY queries, aggregate the pre-computed values from CTE
+                            # Use AVG for derived metrics to get the average value across the group
+                            select_exprs.append(f"AVG({model_name}_cte.{measure_name}_raw) AS {alias}")
+                        else:
+                            # Use complex metric builder for ratio metrics
+                            metric_expr = self._build_metric_sql(measure)
+                            metric_expr = self._wrap_with_fill_nulls(metric_expr, measure)
+                            select_exprs.append(f"{metric_expr} AS {alias}")
                     elif not measure.agg:
                         # Complex types that need special handling (shouldn't reach here normally)
                         raise ValueError(
@@ -1072,8 +1102,14 @@ class SQLGenerator:
                     def replace_field(match):
                         field_name = match.group(1)
                         # Check if it's a measure
-                        if model_obj.get_metric(field_name):
-                            return f"{model_name}_cte.{field_name}_raw"
+                        measure = model_obj.get_metric(field_name)
+                        if measure:
+                            if measure.type == "derived":
+                                # For derived metrics, reference the computed value from CTE
+                                return f"{model_name}_cte.{field_name}_raw"
+                            else:
+                                # For regular measures, use _raw suffix
+                                return f"{model_name}_cte.{field_name}_raw"
                         else:
                             # It's a dimension or other column
                             return f"{model_name}_cte.{field_name}"

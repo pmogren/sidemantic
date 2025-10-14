@@ -326,6 +326,7 @@ class QueryRewriter:
         # Single condition
         return [where.sql(dialect=self.dialect)]
 
+
     def _extract_compound_filters(self, condition: exp.Expression) -> list[str]:
         """Extract filters from compound AND/OR conditions.
 

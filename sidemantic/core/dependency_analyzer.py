@@ -65,7 +65,13 @@ def extract_metric_dependencies(metric_obj, graph=None) -> set[str]:
                 if "." in ref:
                     deps.add(ref)
                 else:
-                    # Try to resolve as metric first
+                    # Special case: check for self-reference first
+                    if hasattr(metric_obj, 'name') and ref == metric_obj.name:
+                        deps.add(ref)
+                        continue
+                    
+                    # Only add as dependency if it's actually a metric reference
+                    # Check if it's a metric in the current model first
                     resolved = False
                     try:
                         if graph.get_metric(ref):
@@ -85,10 +91,8 @@ def extract_metric_dependencies(metric_obj, graph=None) -> set[str]:
                                     break
                             except (KeyError, AttributeError):
                                 pass
-
-                    # If not resolved, keep as-is (might be a metric not yet added)
-                    if not resolved:
-                        deps.add(ref)
+                    
+                    # If not resolved as a metric, it's a column reference - don't add as dependency
         else:
             # Without graph, just return raw column names
             deps.update(refs)

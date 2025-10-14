@@ -55,11 +55,11 @@ view: test_view {
             # Check that measures have resolved SQL
             total_gmv_measure = model.get_metric("total_annual_gmv")
             assert total_gmv_measure is not None
-            assert total_gmv_measure.sql == "{model}.annual_gmv"  # {model} placeholder, not ${annual_gmv}
+            assert total_gmv_measure.sql == "annual_gmv"  # {model} placeholder removed
             
             avg_gmv_measure = model.get_metric("average_annual_gmv")
             assert avg_gmv_measure is not None
-            assert avg_gmv_measure.sql == "{model}.annual_gmv"  # {model} placeholder, not ${annual_gmv}
+            assert avg_gmv_measure.sql == "annual_gmv"  # {model} placeholder removed
             
         finally:
             # Clean up
@@ -115,13 +115,13 @@ view: test_view {
             
             # Check all measures have resolved SQL
             revenue_measure = model.get_metric("total_revenue")
-            assert revenue_measure.sql == "{model}.revenue"
+            assert revenue_measure.sql == "revenue"
             
             cost_measure = model.get_metric("total_cost")
-            assert cost_measure.sql == "{model}.cost"
+            assert cost_measure.sql == "cost"
             
             profit_measure = model.get_metric("total_profit")
-            assert profit_measure.sql == "{model}.profit"
+            assert profit_measure.sql == "profit"
             
         finally:
             test_file.unlink()
@@ -166,10 +166,10 @@ view: test_view {
             
             # Check complex expressions are resolved
             total_measure = model.get_metric("total_with_tax")
-            assert total_measure.sql == "{model}.amount * (1 + {model}.tax_rate)"
+            assert total_measure.sql == "amount * (1 + tax_rate)"
             
             tax_measure = model.get_metric("tax_amount")
-            assert tax_measure.sql == "{model}.amount * {model}.tax_rate"
+            assert tax_measure.sql == "amount * tax_rate"
             
         finally:
             test_file.unlink()
@@ -204,7 +204,7 @@ view: test_view {
             
             # Check that unknown parameter is left unchanged
             total_measure = model.get_metric("total_amount")
-            assert total_measure.sql == "{model}.amount + ${unknown_param}"
+            assert total_measure.sql == "amount + ${unknown_param}"
             
         finally:
             test_file.unlink()
@@ -237,13 +237,13 @@ view: test_view {
             model = graph.get_model("test_view")
             assert model is not None
             
-            # Check that ${TABLE} was replaced with {model}
+            # Check that ${TABLE} was replaced and {model} removed
             amount_dim = model.get_dimension("amount")
-            assert amount_dim.sql == "{model}.amount"
+            assert amount_dim.sql == "amount"
             
-            # Check that parameter resolution works with {model} placeholder
+            # Check that parameter resolution works
             total_measure = model.get_metric("total_amount")
-            assert total_measure.sql == "{model}.amount"
+            assert total_measure.sql == "amount"
             
         finally:
             test_file.unlink()
@@ -289,7 +289,7 @@ view: test_view {
             
             # Check that parameter resolution works in derived tables
             total_measure = model.get_metric("total_annual_gmv")
-            assert total_measure.sql == "{model}.annual_gmv"
+            assert total_measure.sql == "annual_gmv"
             
         finally:
             test_file.unlink()
@@ -334,11 +334,11 @@ view: test_view {
             
             # Check that parameter resolution works for nested references
             calculated_measure = model.get_metric("calculated_amount")
-            assert calculated_measure.sql == "{model}.base_amount * {model}.multiplier"
+            assert calculated_measure.sql == "base_amount * multiplier"
             
-            # Note: ${calculated_amount} should remain unchanged as it references another measure
+            # Note: ${calculated_amount} gets resolved to the actual SQL expression
             double_measure = model.get_metric("double_calculated")
-            assert double_measure.sql == "${calculated_amount} * 2"
+            assert double_measure.sql == "base_amount * multiplier * 2"
             
         finally:
             test_file.unlink()
@@ -378,7 +378,7 @@ view: test_view {
             
             # Check that parameter resolution works with quoted identifiers
             total_measure = model.get_metric("total_amount")
-            assert total_measure.sql == '{model}.amount_usd * (1 + {model}.tax_rate_percent)'
+            assert total_measure.sql == 'amount_usd * (1 + tax_rate_percent)'
             
         finally:
             test_file.unlink()
@@ -423,10 +423,10 @@ view: test_view {
             
             # Check that parameter resolution is case-sensitive
             total_Amount_measure = model.get_metric("total_Amount")
-            assert total_Amount_measure.sql == "{model}.Amount"
+            assert total_Amount_measure.sql == "Amount"
             
             total_amount_measure = model.get_metric("total_amount")
-            assert total_amount_measure.sql == "{model}.amount"
+            assert total_amount_measure.sql == "amount"
             
         finally:
             test_file.unlink()
