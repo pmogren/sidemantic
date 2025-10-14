@@ -598,6 +598,16 @@ class SQLGenerator:
                     dim_sql = dimension.with_granularity(dimension.granularity)
                 else:
                     dim_sql = dimension.sql_expr
+                    
+                    # Process template variables in dimension SQL expression
+                    # Replace {model} placeholder with actual model name
+                    dim_sql = dim_sql.replace("{model}", model_name)
+                    
+                    # Process parameter placeholders using ParameterSet
+                    from sidemantic.core.parameter import ParameterSet
+                    param_set = ParameterSet(self.graph.parameters, {})
+                    dim_sql = param_set.interpolate(dim_sql)
+                    
                 select_cols.append(f"{dim_sql} AS {dimension.name}")
                 columns_added.add(dimension.name)
 
@@ -615,6 +625,16 @@ class SQLGenerator:
             if gran and dimension.type == "time":
                 # Apply time granularity (in addition to base column)
                 dim_sql = dimension.with_granularity(gran)
+                
+                # Process template variables in dimension SQL expression
+                # Replace {model} placeholder with actual model name
+                dim_sql = dim_sql.replace("{model}", model_name)
+                
+                # Process parameter placeholders using ParameterSet
+                from sidemantic.core.parameter import ParameterSet
+                param_set = ParameterSet(self.graph.parameters, {})
+                dim_sql = param_set.interpolate(dim_sql)
+                
                 alias = f"{dim_name}__{gran}"
                 if alias not in columns_added:
                     select_cols.append(f"{dim_sql} AS {alias}")
@@ -651,7 +671,18 @@ class SQLGenerator:
                 if measure.agg == "count" and not measure.sql:
                     select_cols.append(f"1 AS {measure_name}_raw")
                 else:
-                    select_cols.append(f"{measure.sql_expr} AS {measure_name}_raw")
+                    # Process template variables in measure SQL expression
+                    sql_expr = measure.sql_expr
+                    
+                    # Replace {model} placeholder with actual model name
+                    sql_expr = sql_expr.replace("{model}", model_name)
+                    
+                    # Process parameter placeholders using ParameterSet
+                    from sidemantic.core.parameter import ParameterSet
+                    param_set = ParameterSet(self.graph.parameters, {})
+                    sql_expr = param_set.interpolate(sql_expr)
+                    
+                    select_cols.append(f"{sql_expr} AS {measure_name}_raw")
 
         # Build FROM clause
         if model.sql:

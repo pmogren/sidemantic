@@ -135,7 +135,7 @@ class LookMLAdapter(BaseAdapter):
         # Parse measures
         measures = []
         for measure_def in view_def.get("measures", []):
-            measure = self._parse_measure(measure_def)
+            measure = self._parse_measure(measure_def, view_def)
             if measure:
                 measures.append(measure)
 
@@ -259,7 +259,7 @@ class LookMLAdapter(BaseAdapter):
 
         return dimensions
 
-    def _parse_measure(self, measure_def: dict) -> Metric | None:
+    def _parse_measure(self, measure_def: dict, view_def: dict) -> Metric | None:
         """Parse LookML measure.
 
         Args:
@@ -336,7 +336,23 @@ class LookMLAdapter(BaseAdapter):
         sql = measure_def.get("sql")
         if sql:
             sql = sql.replace("${TABLE}", "{model}")
-            # Keep ${measure_ref} as is for now - could be enhanced later
+            # Resolve parameter references to actual column names
+            # Look for ${param_name} patterns and resolve them
+            import re
+            def resolve_param(match):
+                param_name = match.group(1)
+                # Check if this parameter corresponds to a dimension in the same view
+                for dim in view_def.get("dimensions", []):
+                    if isinstance(dim, dict) and dim.get("name") == param_name:
+                        # Found matching dimension, use its SQL expression
+                        dim_sql = dim.get("sql", param_name)
+                        # Replace ${TABLE} with {model} in dimension SQL
+                        return dim_sql.replace("${TABLE}", "{model}")
+                # If not found, leave as is (will be handled by parameter interpolation)
+                return match.group(0)
+            
+            # Replace ${param_name} with resolved column references
+            sql = re.sub(r'\$\{(\w+)\}', resolve_param, sql)
 
         # Determine if this is a derived/ratio metric
         metric_type = None
