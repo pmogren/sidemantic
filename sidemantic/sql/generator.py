@@ -1089,6 +1089,19 @@ class SQLGenerator:
                 # Replace {model} placeholder with actual model name
                 parsed_filter = parsed_filter.replace("{model}", base_model_name)
                 
+                # Qualify unqualified column references using the base model
+                try:
+                    import sqlglot
+                    parsed_ast = sqlglot.parse_one(parsed_filter, dialect=self.dialect)
+                    for col in parsed_ast.find_all(sqlglot.expressions.Column):
+                        if not col.table and not col.this.quoted:
+                            # Only qualify columns that are not quoted (i.e., not string literals)
+                            col.set("table", base_model_name)
+                    parsed_filter = parsed_ast.sql(dialect=self.dialect)
+                except Exception:
+                    # If parsing fails, use the original filter
+                    pass
+                
                 # Process parameter placeholders using ParameterSet
                 from sidemantic.core.parameter import ParameterSet
                 param_set = ParameterSet(self.graph.parameters, parameters or {})

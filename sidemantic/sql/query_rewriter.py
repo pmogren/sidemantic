@@ -317,7 +317,7 @@ class QueryRewriter:
         if not select.args.get("where"):
             return []
 
-        where = select.args["where"].this
+        where = select.args["where"]
 
         # Handle compound conditions (AND/OR)
         if isinstance(where, (exp.And, exp.Or)):
