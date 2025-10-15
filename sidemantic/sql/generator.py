@@ -746,6 +746,25 @@ class SQLGenerator:
                             clean_table = col.table.replace("_cte", "")
                             if clean_table == model_name:
                                 col.set("table", None)
+                                # Now resolve the dimension name to actual SQL
+                                dimension = model.get_dimension(col.name)
+                                if dimension:
+                                    dim_sql = dimension.sql
+                                    if "{model}" in dim_sql:
+                                        dim_sql = dim_sql.replace("{model}.", "")
+                                    # Replace the entire column with a new one
+                                    new_col = exp.Column(this=dim_sql)
+                                    col.replace(new_col)
+                        else:
+                            # Check if this is a dimension that needs to be resolved
+                            dimension = model.get_dimension(col.name)
+                            if dimension:
+                                # Replace the column name with the actual SQL expression
+                                dim_sql = dimension.sql
+                                if "{model}" in dim_sql:
+                                    dim_sql = dim_sql.replace("{model}.", "")
+                                # Replace the column with the dimension SQL
+                                col.set("name", dim_sql)
                     processed_filter = parsed.sql(dialect=self.dialect)
                     processed_filters.append(processed_filter)
                 except Exception:
@@ -1111,8 +1130,18 @@ class SQLGenerator:
                                 # For regular measures, use _raw suffix
                                 return f"{model_name}_cte.{field_name}_raw"
                         else:
-                            # It's a dimension or other column
-                            return f"{model_name}_cte.{field_name}"
+                            # Check if it's a dimension
+                            dimension = model_obj.get_dimension(field_name)
+                            if dimension:
+                                # For dimensions, use the actual SQL expression
+                                # Replace {model} placeholder with actual table name or remove qualifier
+                                dim_sql = dimension.sql
+                                if "{model}" in dim_sql:
+                                    dim_sql = dim_sql.replace("{model}.", "")
+                                return dim_sql
+                            else:
+                                # It's a dimension or other column
+                                return f"{model_name}_cte.{field_name}"
 
                     result_parts = []
                     for part, is_quoted in parts:

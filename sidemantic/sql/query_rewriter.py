@@ -323,8 +323,8 @@ class QueryRewriter:
         if isinstance(where, (exp.And, exp.Or)):
             return self._extract_compound_filters(where)
 
-        # Single condition
-        return [where.sql(dialect=self.dialect)]
+        # Single condition - qualify unqualified column references
+        return [self._qualify_filter_columns(where)]
 
 
     def _extract_compound_filters(self, condition: exp.Expression) -> list[str]:
@@ -344,14 +344,34 @@ class QueryRewriter:
                 if isinstance(expr, (exp.And, exp.Or)):
                     filters.extend(self._extract_compound_filters(expr))
                 else:
-                    filters.append(expr.sql(dialect=self.dialect))
+                    filters.append(self._qualify_filter_columns(expr))
         elif isinstance(condition, exp.Or):
             # OR must stay together as single filter
-            filters.append(condition.sql(dialect=self.dialect))
+            filters.append(self._qualify_filter_columns(condition))
         else:
-            filters.append(condition.sql(dialect=self.dialect))
+            filters.append(self._qualify_filter_columns(condition))
 
         return filters
+
+    def _qualify_filter_columns(self, condition: exp.Expression) -> str:
+        """Qualify unqualified column references in filter expressions.
+
+        Args:
+            condition: Filter expression AST node
+
+        Returns:
+            Filter expression with qualified column references
+        """
+        # Create a copy of the condition to avoid modifying the original
+        qualified_condition = condition.copy()
+        
+        # Find all Column nodes and qualify them if needed
+        for column in qualified_condition.find_all(exp.Column):
+            if not column.table and self.inferred_table:
+                # Add table qualifier for unqualified columns
+                column.set("table", self.inferred_table)
+        
+        return qualified_condition.sql(dialect=self.dialect)
 
     def _extract_order_by(self, select: exp.Select) -> list[str] | None:
         """Extract ORDER BY clause.
