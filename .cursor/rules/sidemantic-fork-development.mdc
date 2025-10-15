@@ -1,0 +1,42 @@
+---
+globs: **/*
+description: Guidelines for developing in the sidemantic repository
+---
+
+# Sidemantic Development Guidelines
+
+When modifying the sidemantic repository, follow these essential practices:
+
+## 1. Read the README First
+- Always consult [README.md](mdc:README.md) before making changes
+- Ensure all extra dependencies are installed as specified
+- Follow the development setup instructions
+
+## 2. Code Quality Standards
+- Respect the existing code style and conventions
+- Follow the project's linting and formatting rules
+- Maintain consistency with existing patterns
+
+## 3. Testing Requirements
+- **Always add or fix corresponding unit tests for your changes**
+- Ensure all existing unit tests continue to pass
+- Run the full test suite before committing changes
+- Write tests that cover both happy path and edge cases
+
+## 4. Development Workflow
+- Install dependencies: `uv run pip install -e .`
+- Run tests: `uv run python -m pytest tests/`
+- Check code style and linting
+- Verify functionality with integration tests
+
+## 5. Test Categories
+- **Unit Tests**: Test individual functions and methods
+- **Integration Tests**: Test component interactions
+- **End-to-End Tests**: Test complete workflows
+
+## 6. Commit Standards
+- Write clear, descriptive commit messages
+- Include test coverage in your commits
+- Document any breaking changes
+
+Remember: Always ensure your changes are thoroughly tested and don't break existing functionality.
