@@ -318,6 +318,10 @@ class QueryRewriter:
             return []
 
         where = select.args["where"]
+        
+        # If it's a Where expression, extract the condition
+        if isinstance(where, exp.Where):
+            where = where.this
 
         # Handle compound conditions (AND/OR)
         if isinstance(where, (exp.And, exp.Or)):
